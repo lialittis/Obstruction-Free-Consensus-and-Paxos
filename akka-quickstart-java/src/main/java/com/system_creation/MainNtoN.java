@@ -1,8 +1,8 @@
-package com.lightbend.akka.sample;
+package com.system_creation;
 
 import java.io.IOException;
 
-import com.lightbend.akka.sample.ProcessNtoN.Members;
+import com.system_creation.ProcessNtoN.Members;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
