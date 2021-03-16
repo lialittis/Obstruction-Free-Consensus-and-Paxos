@@ -21,4 +21,10 @@ public class AkkaQuickstart {
       greeterMain.terminate();
     }
   }
+  
+  /*
+   * Greeter: Receives commands to Greet someone and responds with a Greeted to confirm the greeting has taken place
+   * GreeterBot: receives the reply from the Greeter and sends a number of additional greeting messages and collect the replies until a given max number of messages have been reached.
+   * GreeterMain: The guardian actor that bootstraps everything
+   * */
 }

@@ -34,8 +34,9 @@ public class GreeterMain extends AbstractBehavior<GreeterMain.SayHello> {
 
     private Behavior<SayHello> onSayHello(SayHello command) {
         //#create-actors
+    	// System.out.print("test");
         ActorRef<Greeter.Greeted> replyTo =
-                getContext().spawn(GreeterBot.create(3), command.name);
+                getContext().spawn(GreeterBot.create(5), command.name);
         greeter.tell(new Greeter.Greet(command.name, replyTo));
         //#create-actors
         return this;
