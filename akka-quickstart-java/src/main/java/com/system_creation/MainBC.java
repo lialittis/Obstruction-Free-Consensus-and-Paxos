@@ -49,21 +49,21 @@ public class MainBC {
        System.out.println("System birth: "+ dateFormatter.format(now));
 
        for(int x = 0; x < N; x = x + 1) {
-	   members.get(x).tell(new Members(members), ActorRef.noSender());      
+	   members.get(x).tell(new Members(members), ActorRef.noSender()); // No sender means this operation is not used to send msg  
 	}
 
     // shuffle and choose 1/3 random processes to fail
        
     Collections.shuffle(members);
   
-//    for(int x = 0; x <2*N/3; x = x + 1) { // first 2/3 processes are active
-//    	   members.get(x).tell(new State(1), ActorRef.noSender());      
-//    	} 
-//        for(int x = 2*N/3; x < N; x = x + 1) { // last 1/3 processes are faulty 
-//     	   members.get(x).tell(new State(2), ActorRef.noSender());
-//     	  //System.out.println("Process "+ members.get(x)+" is faulty");
-//     	}
-//       
+    for(int x = 0; x <2*N/3; x = x + 1) { // first 2/3 processes are active
+    	   members.get(x).tell(new State(1), ActorRef.noSender());      
+    	} 
+        for(int x = 2*N/3; x < N; x = x + 1) { // last 1/3 processes are faulty 
+     	   members.get(x).tell(new State(2), ActorRef.noSender());
+     	   System.out.println("Process "+ members.get(x)+" is faulty");
+     	}
+       
 	
       //#main-send-messages
 
