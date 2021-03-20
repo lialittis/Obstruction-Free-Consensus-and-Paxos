@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 public class Main {
 
-    public static int N = 10;
+    public static int N = 10; // The system size : number of processes
 
 
     public static void main(String[] args) throws InterruptedException {
