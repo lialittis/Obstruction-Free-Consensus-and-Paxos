@@ -10,8 +10,8 @@ import java.util.Random;
 
 public class Main {
 
-    public static int N = 3; // The system size : number of processes
-    public static int f = 1; // fault-prone mode
+    public static int N = 10; // The system size : number of processes
+    public static int f = 4; // fault-prone mode
     public static double t_le = 0.5; // a fixed timeout to pick up a process
     public static void main(String[] args) throws InterruptedException {
 
@@ -38,16 +38,17 @@ public class Main {
         Collections.shuffle(references);
         for(int i = 0; i < f ; ++i) {
         	references.get(i).tell(new Process.State(2), ActorRef.noSender()); // choose f processes to be faulty state
-        	System.out.println("Process "+ references.get(i)+" is faulty");
+        	system.log().info("Process p"+ references.get(i).path().name()+" is faulty");
         }
         for(int i = f; i < N; ++i) {
         	references.get(i).tell(new Process.State(1), ActorRef.noSender());
         }
         
-        // Give each process a view of all the other processes
+        // Give each process a view of all the other processes - launch the process
         Members m = new Members(references);
         for (ActorRef actor : references) {
             actor.tell(m, ActorRef.noSender()); // initialize the processes
+            actor.tell(new LaunchMsg(), ActorRef.noSender());
         }
         
         // timeout of sleep
@@ -63,6 +64,7 @@ public class Main {
         
         // After receiving a hold message, a process stops invoking propose operations.
         for(int i = 1; i < N; ++i) {
+        	system.log().info("Pick p" + references.get(leader).path().name() + " as the leader of the Paxos !");
         	references.get(i).tell(new HoldMsg(),references.get(leader));
         }
 

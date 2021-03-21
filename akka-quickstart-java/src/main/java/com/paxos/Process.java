@@ -103,6 +103,8 @@ public class Process extends UntypedAbstractActor {
     			log.info("p" + id + " crashes now !");
     			return true;
     		}
+    	}else if(this.state == 4){
+    		return true;
     	}
     	return false;
     }
@@ -112,10 +114,11 @@ public class Process extends UntypedAbstractActor {
         // log.info("Received new ballot " + ballot + " msg: p" + self().path().name() + " <- p" + pj.path().name());
 
     	if (newBallot < readballot || imposeballot > newBallot) {
+    		log.info("readballot "+ readballot + " imposeballot " + imposeballot + " newBallot" + newBallot);
     		pj.tell(new GatherMsg(newBallot,"ABORT"),this.getSelf()); // TODO¡¡add AbortMsg
     	}
     	else {
-    		readballot = newBallot ;    
+    		readballot = newBallot ;   // TODO check if there is a bug 
     		pj.tell(new GatherMsg(newBallot,"GATHER",imposeballot,estimate), this.getSelf());
             
     	}
@@ -153,13 +156,15 @@ public class Process extends UntypedAbstractActor {
     private void impose(ImposeMsg m, ActorRef pj) {
     	if(isCrashed()) return;
     	if(readballot > m.ballot || imposeballot > m.ballot) {
-  		  pj.tell(new RespondMsg("ABORT", m.ballot), getSelf());
-  	  }
-  	  else {
-  		  this.estimate = m.proposal;
-  		  this.imposeballot = m.ballot;
-  		  pj.tell(new RespondMsg("ACK", m.ballot),getSelf());
-  	  }
+  			pj.tell(new RespondMsg("ABORT", m.ballot), getSelf());
+  	  
+    	}
+    	else {
+  			this.estimate = m.proposal;
+  			this.imposeballot = m.ballot;
+  			pj.tell(new RespondMsg("ACK", m.ballot),getSelf());
+  	  
+    	}
     }
     
     
@@ -175,19 +180,25 @@ public class Process extends UntypedAbstractActor {
     }
     
     public void onReceive(Object message) throws Throwable {
-    	if (message instanceof State) {
-      	  this.state = ((State) message).state;
-      	  // boolean iscrashed = isCrashed();
+    	
+    	if (message instanceof State) {  
+    		this.state = ((State) message).state;
+      	  
+    		// boolean iscrashed = isCrashed();
 
         }else if (message instanceof Members) {//save the system's info
               Members m = (Members) message;
               processes = m;
               // this.id = Integer.parseInt(self().path().name());
               log.info("p" + self().path().name() + " received processes info and start to propose message");
-              if(this.state <= 2) {
-    			  this.propose(random.nextInt(2));
-    		  }
-          }
+              if(isCrashed()) return;
+              
+        }else if(message instanceof LaunchMsg && this.state <=2) {
+        	//if(this.state <= 2) {
+        	if(isCrashed()) return;
+        	this.propose(random.nextInt(2));
+        	//}
+        }
 
 //          else if (message instanceof OfconsProposerMsg) {
 //              OfconsProposerMsg m = (OfconsProposerMsg) message;
@@ -201,7 +212,7 @@ public class Process extends UntypedAbstractActor {
           }
           else if (message instanceof GatherMsg && this.state <= 2) {
         	  GatherMsg m = (GatherMsg) message;
-        	  log.info("Gahter information is [" + m.message + " , " + m.ballot + " , " +  m.estballot + " , " +  m.estimate +"] from p" + getSender().path().name());
+        	  log.info("Gather information is [" + m.message + " , " + m.ballot + " , " +  m.estballot + " , " +  m.estimate +"] from p" + getSender().path().name());
         	  this.gather(m);
           }
           else if(message instanceof ImposeMsg && this.state <= 2 ) {
