@@ -1,10 +1,10 @@
-package com.template;
+package com.paxos;
 
-public class ResposeMsg {
+public class RespondMsg {
 	public String info;
 	public int ballot;
 	
-	public ResposeMsg(String info, int ballot) {
+	public RespondMsg(String info, int ballot) {
 		this.info = info;
 		this.ballot = ballot;
 	}
