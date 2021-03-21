@@ -23,6 +23,7 @@ public class Process extends UntypedAbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);// Logger attached to actor
     private final int N; //number of processes
     private final int id; //id of current process
+    private int numACK = 0;
     private Members processes; //other processes' references
     private int proposal;
     
@@ -35,20 +36,6 @@ public class Process extends UntypedAbstractActor {
     static Random random = new Random();
     private boolean isCrashed = false; // state  4
     private boolean isHold = false; // state  3
-    
-	// state of the process, 1 - active, 2 - faulty, 3 - holding, 4 - silent
-    private int state;
-    
-	static public class State {
-		public final int state;
-
-		public State(int state) {
-			this.state = state;
-		}
-	}
-    
-	// local message/state buffer (to store states received in a Quorum or read phase)
-	private ArrayList states = new ArrayList();
     
     public Process(int ID, int nb) {
         N = nb;
@@ -72,17 +59,20 @@ public class Process extends UntypedAbstractActor {
         });
     }
     
+	// state of the process, 1 - active, 2 - faulty, 3 - holding, 4 - silent / crash 5 - decided
+    private int state;
     
-    public void propose(int v) {
-        
-        proposal = v;
-        ballot = ballot + N;
-        log.info("Process: p" + id + " proposes " + v + " with ballot " + ballot);
-        for (ActorRef actor : processes.references) {
-            actor.tell(new ReadMsg(ballot), this.getSelf());
-            log.info("Read ballot " + ballot + " msg: p" + self().path().name() + " -> p" + actor.path().name());
-        }
-    }
+	static public class State {
+		public final int state;
+
+		public State(int state) {
+			this.state = state;
+		}
+	}
+    
+	// local message/state buffer (to store states received in a Quorum or read phase)
+	private ArrayList states = new ArrayList();
+    
     
     
 //    private void ofconsProposeReceived(Integer v) {
@@ -109,30 +99,56 @@ public class Process extends UntypedAbstractActor {
     	return false;
     }
     
-    private void readReceived(int newBallot, ActorRef pj) {
+    public void propose(int v) {
+        states.clear();
+        proposal = v;
+        ballot = ballot + N;
+        log.info("Process: p" + id + ": [proposes " + v + ", ballot " + ballot + "]");
+        // log.info("processes are:"+ processes.references);
+        read();
+    }
+    
+    public void read() {
+    	for (ActorRef actor : processes.references) {
+            actor.tell(new ReadMsg(ballot), this.getSelf());
+            // log.info("Read ballot " + ballot + " msg: p" + self().path().name() + " -> p" + actor.path().name());
+        }
+    }
+    
+    private void gather(int newBallot, ActorRef pj) {
     	if(isCrashed()) return;
         // log.info("Received new ballot " + ballot + " msg: p" + self().path().name() + " <- p" + pj.path().name());
 
     	if (newBallot < readballot || imposeballot > newBallot) {
-    		log.info("readballot "+ readballot + " imposeballot " + imposeballot + " newBallot" + newBallot);
-    		pj.tell(new GatherMsg(newBallot,"ABORT"),this.getSelf()); // TODO¡¡add AbortMsg
+    		// log.info("ABORT with readballot "+ readballot + " imposeballot " + imposeballot + " newBallot " + newBallot);
+    		pj.tell(new GatherMsg(newBallot,"ABORT"),this.getSelf()); 
     	}
     	else {
     		readballot = newBallot ;   // TODO check if there is a bug 
+    		//log.info("GATHER with readballot "+ readballot + " imposeballot " + imposeballot + " newBallot " + newBallot);
     		pj.tell(new GatherMsg(newBallot,"GATHER",imposeballot,estimate), this.getSelf());
             
     	}
     }
     
-    private void gather(GatherMsg m) {
+    private void impose(GatherMsg m) {
     	if(isCrashed()) return;
+    	
     	if(m.message.equals("ABORT")) {
-  		  unhandled(m); // TODO
-  	  } else{
+    		// return;
+    		if(this.state <= 2 && ballot == m.ballot)
+    			this.propose(proposal);  // RE-propose once it receive a ABORT
+//    		else
+//    			log.info("FOR REAL!!!");
+  	  
+    	}
+    	else if(m.message.equals("GATHER") && ballot == m.ballot){
   		  this.states.add(m);
-  		  if (states.size()>=this.processes.references.size()/2+1) { // collected a majority of responses
-  			  log.info("p"+this.id+": received a quorum of read responses ");
+  		  
+  		  if (states.size()>=N/2+1) { // collected a majority of responses
+  			  // log.info("p"+this.id+": received a quorum of read responses ");
   			  int highestballot = 0;
+  			  
   			  for (int x = 0; x< states.size(); x = x+1) {
   				  // To find the highest ballot and define the "newest" proposal
   				  int thisballot = ((GatherMsg)states.get(x)).estballot;
@@ -141,97 +157,108 @@ public class Process extends UntypedAbstractActor {
   					  highestballot = thisballot;
   				  }
   			  }
-  				  
+  			  
   			  states.clear();
-  				
+  			  
   			  for(ActorRef actor : processes.references) {
   				  actor.tell(new ImposeMsg("IMPORT", ballot, proposal) ,getSelf()); // send the Impose request
-  				  log.info("Impose ballot " + ballot + " and proposal " + proposal+ " msg: p" + self().path().name() + " -> p" + actor.path().name());
+  				  // log.info("Impose ballot " + ballot + " and proposal " + proposal+ " msg: p" + self().path().name() + " -> p" + actor.path().name());
   			  }
   		  }
   	  
-  	  }
+  	  
+    	}
+
     }
     
-    private void impose(ImposeMsg m, ActorRef pj) {
+    private void respond(ImposeMsg m, ActorRef pj) {
     	if(isCrashed()) return;
     	if(readballot > m.ballot || imposeballot > m.ballot) {
+        	// log.info("Abort : " + getSender().path().name() +" ballot "+ m.ballot +" " + getSelf().path().name()+ " readballot " + readballot + " imposeballot " + imposeballot);
   			pj.tell(new RespondMsg("ABORT", m.ballot), getSelf());
-  	  
     	}
     	else {
   			this.estimate = m.proposal;
   			this.imposeballot = m.ballot;
   			pj.tell(new RespondMsg("ACK", m.ballot),getSelf());
-  	  
-    	}
+  		}
     }
     
     
-    private void respond(RespondMsg m) {
+    private void decide(RespondMsg m) {
     	if(isCrashed()) return;
-    	if(states.size()>=this.processes.references.size()/2+1) {
-  		  for(ActorRef actor : processes.references) {
-      		  if(m.info.equals("ACK")) {
-      			  actor.tell(new DecideMsg("DECIDE",proposal),getSelf());
-      		  }
-      	  }
-  	  }
+    	
+    	if(m.info.equals("ABORT")) {
+    		// return;
+    		if(this.state <= 2 && ballot == m.ballot)
+    			this.propose(proposal);  // RE-propose once it receive a ABORT
+//    		else
+//    			log.info("FOR REAL???");
+    	}
+    	else if(ballot == m.ballot) {
+    		++numACK;
+    		if(numACK >= N/2+1) {
+    			for(ActorRef actor : processes.references) {
+    	  			actor.tell(new DecideMsg("DECIDE",proposal),getSelf());
+    	      	}
+    	  		numACK = 0;
+    	  	 }
+    		
+    	}
+    	
     }
     
     public void onReceive(Object message) throws Throwable {
     	
-    	if (message instanceof State) {  
-    		this.state = ((State) message).state;
-      	  
-    		// boolean iscrashed = isCrashed();
-
+    	if (message instanceof State) { 
+    		this.state = ((State)message).state;
         }else if (message instanceof Members) {//save the system's info
               Members m = (Members) message;
               processes = m;
               // this.id = Integer.parseInt(self().path().name());
-              log.info("p" + self().path().name() + " received processes info and start to propose message");
+              // log.info("p" + self().path().name() + " received processes info and start to propose message");
               if(isCrashed()) return;
-              
         }else if(message instanceof LaunchMsg && this.state <=2) {
-        	//if(this.state <= 2) {
         	if(isCrashed()) return;
         	this.propose(random.nextInt(2));
-        	//}
-        }
-
-//          else if (message instanceof OfconsProposerMsg) {
-//              OfconsProposerMsg m = (OfconsProposerMsg) message;
-//              log.info("Received proposal msg is " + m.v);
-//              this.ofconsProposeReceived(m.v);
-//      
-//          }
-          else if (message instanceof ReadMsg && this.state <= 2) {
-              ReadMsg m = (ReadMsg) message;
-              this.readReceived(m.ballot, getSender());
-          }
-          else if (message instanceof GatherMsg && this.state <= 2) {
+        }else if(message instanceof HoldMsg && this.state <=3) {
+        	HoldMsg m = (HoldMsg)message;
+        	if(isCrashed()) return;
+        	this.state = m.state;
+        	
+        }else if (message instanceof ReadMsg && this.state <= 3) {
+         
+        	ReadMsg m = (ReadMsg) message;
+            
+        	this.gather(m.ballot, getSender());
+          
+        }else if (message instanceof GatherMsg && this.state <= 3) {
         	  GatherMsg m = (GatherMsg) message;
-        	  log.info("Gather information is [" + m.message + " , " + m.ballot + " , " +  m.estballot + " , " +  m.estimate +"] from p" + getSender().path().name());
-        	  this.gather(m);
+        	  // log.info("Gather information is [" + m.message + " , " + m.ballot + " , " +  m.estballot + " , " +  m.estimate +"] from p" + getSender().path().name());
+        	  this.impose(m);
           }
-          else if(message instanceof ImposeMsg && this.state <= 2 ) {
+          else if(message instanceof ImposeMsg && this.state <= 3 ) {
         	  ImposeMsg m = (ImposeMsg) message;
-        	  // ActorRef pj = getSender();
-        	  this.impose(m,getSender());
+        	  this.respond(m,getSender());
           }
-          else if(message instanceof RespondMsg && this.state <= 2) {
+          else if(message instanceof RespondMsg && this.state <= 3) {
         	  RespondMsg m = (RespondMsg) message;
-        	  this.states.add(m);
-        	  this.respond(m);
+        	  // send DECIDE v to all
+    		  // log.info("DONE:¡¡p" + getSelf().path().name() + " decides proposal : " + proposal);
+
+        	  this.decide(m);
           }
-          else if(message instanceof DecideMsg && ((DecideMsg) message).decideInfo.equals("DECIDE") && this.state <= 2) {
-        	  // send DECIDE v to all ???
+          else if(message instanceof DecideMsg && ((DecideMsg) message).decideInfo.equals("DECIDE") && this.state <= 3) {
+        	  if(isCrashed()) return;
         	  DecideMsg m = (DecideMsg)message;
-        	  estimate = m.proposal;
-        	  log.info("DONE " + + this.id + " complete decide proposal " + m.proposal);
+        	  proposal = m.proposal;
+        	  if(this.state != 5) {
+        		  log.info("DONE:¡¡p" + getSelf().path().name() + " decides proposal : " + m.proposal);
+        	  }
+        	  this.state = 5;
+
           }else {
-        	  
+        	  return ;
           }
 }
 }

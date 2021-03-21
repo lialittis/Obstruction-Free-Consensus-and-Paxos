@@ -91,6 +91,7 @@ public class Process extends AbstractActor {
     void onAbort(Messages.AbortMessage m) {
         if (fault()) return;
         if (ballot == m.ballot) {
+        	log.info("Abort for p" + getSelf().path().name());
             isProposing = false;
             if (!isDecided && !isHolding) {
                 propose(proposalValue);
@@ -123,11 +124,15 @@ public class Process extends AbstractActor {
                 }
             }
         }
+        else {
+        	log.info("ME TOO!");
+        }
     }
 
     void onImpose(Messages.ImposeMessage m) {
         if (fault()) return;
         if (readballot > m.ballot || imposeballot > m.ballot) {
+        	log.info("Abort : " + getSender().path().name() +" ballot "+ m.ballot +" " + getSelf().path().name()+ " readballot " + readballot + " imposeballot " + imposeballot);
             getSender().tell(new Messages.AbortMessage(m.ballot), getSelf());
         } else {
             estimate = m.value;

@@ -10,9 +10,9 @@ import java.util.Random;
 
 public class Main {
 
-    public static int N = 10; // The system size : number of processes
-    public static int f = 4; // fault-prone mode
-    public static double t_le = 0.5; // a fixed timeout to pick up a process
+    public static int N = 100; // The system size : number of processes
+    public static int f = 49; // fault-prone mode
+    public static double t_le = 2; // a fixed timeout to pick up a process
     public static void main(String[] args) throws InterruptedException {
 
         // Instantiate an actor system
@@ -63,13 +63,13 @@ public class Main {
         leader = rand.nextInt(N-f) + f;
         
         // After receiving a hold message, a process stops invoking propose operations.
+        system.log().info("Pick p" + references.get(leader).path().name() + " as the leader of the Paxos !");
         for(int i = 1; i < N; ++i) {
-        	system.log().info("Pick p" + references.get(leader).path().name() + " as the leader of the Paxos !");
-        	references.get(i).tell(new HoldMsg(),references.get(leader));
+        	if(i!=leader) {
+        		references.get(i).tell(new HoldMsg(),references.get(leader));
+        	}
+        	
         }
-
-//        OfconsProposerMsg opm = new OfconsProposerMsg("100");
-//        references.get(0).tell(opm, ActorRef.noSender());
         
         
         System.out.println(">>> Press ENTER to exit <<<");
