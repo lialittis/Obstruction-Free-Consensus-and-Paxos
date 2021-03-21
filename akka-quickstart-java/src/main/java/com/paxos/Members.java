@@ -1,4 +1,4 @@
-package com.template;
+package com.paxos;
 import akka.actor.ActorRef;
 import java.util.ArrayList;
 /**

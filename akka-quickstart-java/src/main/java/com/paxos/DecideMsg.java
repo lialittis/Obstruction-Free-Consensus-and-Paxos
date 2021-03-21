@@ -1,4 +1,4 @@
-package com.template;
+package com.paxos;
 
 public class DecideMsg {
 	public String decideInfo;
