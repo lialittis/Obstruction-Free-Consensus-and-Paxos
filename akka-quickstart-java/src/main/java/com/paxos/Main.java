@@ -10,9 +10,10 @@ import java.util.Random;
 
 public class Main {
 
-    public static int N = 100; // The system size : number of processes
-    public static int f = 49; // fault-prone mode
-    public static double t_le = 1.5; // a fixed timeout to pick up a process
+    public static int N = 3; // The system size : number of processes
+    public static int f = 1; // fault-prone mode
+    public static double t_le = 0.5; // a fixed timeout to pick up a process
+    public static boolean isLeader = true; // add the leader election
     
     public static void main(String[] args) throws InterruptedException {
 
@@ -51,26 +52,26 @@ public class Main {
             actor.tell(new LaunchMsg(), ActorRef.noSender());
         }
         
-        // timeout of sleep
-        Thread.sleep((long) t_le * 1000);
-        
-        // Emulate a leader election mechanism
-        
-        // Random leader
-        
-        Random rand =new Random(25);
-        int leader;
-        leader = rand.nextInt(N-f) + f;
-        
-        // After receiving a hold message, a process stops invoking propose operations.
-        system.log().info("Pick p" + references.get(leader).path().name() + " as the leader of the Paxos !");
-        for(int i = 1; i < N; ++i) {
-        	if(i!=leader) {
-        		references.get(i).tell(new HoldMsg(),references.get(leader));
-        	}
-        	
+        if(isLeader) {
+        	// timeout of sleep
+            Thread.sleep((long) t_le * 1000);
+            
+            // Emulate a leader election mechanism
+            
+            // Random leader
+            Random rand =new Random(25);
+            int leader;
+            leader = rand.nextInt(N-f) + f;
+            
+            // After receiving a hold message, a process stops invoking propose operations.
+            system.log().info("Pick p" + references.get(leader).path().name() + " as the leader of the Paxos !");
+            for(int i = 1; i < N; ++i) {
+            	if(i!=leader) {
+            		references.get(i).tell(new HoldMsg(),references.get(leader));
+            	}
+            }
         }
-        
+
         
         System.out.println(">>> Press ENTER to exit <<<");
         System.in.read();
