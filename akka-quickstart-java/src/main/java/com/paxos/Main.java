@@ -12,18 +12,18 @@ public class Main {
 
     public static int N = 100; // The system size : number of processes
     public static int f = 49; // fault-prone mode
-    public static double t_le = 2; // a fixed timeout to pick up a process
+    public static double t_le = 1.5; // a fixed timeout to pick up a process
+    
     public static void main(String[] args) throws InterruptedException {
 
+    	
         // Instantiate an actor system
         final ActorSystem system = ActorSystem.create("system");
         system.log().info("System started with N=" + N );
 
         ArrayList<ActorRef> references = new ArrayList<>();
         
-        try
-        
-        {
+        try{
 
         for (int i = 0; i < N; i++) {
             // Instantiate processes

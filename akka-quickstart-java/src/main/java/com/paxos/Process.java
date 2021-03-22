@@ -34,8 +34,7 @@ public class Process extends UntypedAbstractActor {
     
     private double probCrash = 0.5;
     static Random random = new Random();
-    private boolean isCrashed = false; // state  4
-    private boolean isHold = false; // state  3
+
     
     public Process(int ID, int nb) {
         N = nb;
@@ -74,18 +73,6 @@ public class Process extends UntypedAbstractActor {
 	private ArrayList states = new ArrayList();
     
     
-    
-//    private void ofconsProposeReceived(Integer v) {
-//
-//        proposal = v;
-//        log.info("Proposal is " + v);
-//        ballot = ballot + N;
-//        for (ActorRef actor : processes.references) {
-//            actor.tell(new ReadMsg(ballot), this.getSelf());
-//            log.info("Read ballot " + ballot + " msg: p" + self().path().name() + " -> p" + actor.path().name());
-//        }
-//    }
-    
     private boolean isCrashed() {
     	if(this.state == 2 ) {
     		if(random.nextDouble() <= probCrash) {
@@ -103,7 +90,8 @@ public class Process extends UntypedAbstractActor {
         states.clear();
         proposal = v;
         ballot = ballot + N;
-        log.info("Process: p" + id + ": [proposes " + v + ", ballot " + ballot + "]");
+        // estimate = proposal; 
+        // log.info("Process: p" + id + ": [proposes " + v + ", ballot " + ballot + "]");
         // log.info("processes are:"+ processes.references);
         read();
     }
@@ -124,7 +112,7 @@ public class Process extends UntypedAbstractActor {
     		pj.tell(new GatherMsg(newBallot,"ABORT"),this.getSelf()); 
     	}
     	else {
-    		readballot = newBallot ;   // TODO check if there is a bug 
+    		readballot = newBallot ;   
     		//log.info("GATHER with readballot "+ readballot + " imposeballot " + imposeballot + " newBallot " + newBallot);
     		pj.tell(new GatherMsg(newBallot,"GATHER",imposeballot,estimate), this.getSelf());
             
@@ -154,6 +142,7 @@ public class Process extends UntypedAbstractActor {
   				  int thisballot = ((GatherMsg)states.get(x)).estballot;
   				  if(thisballot > highestballot){
   					  proposal = ((GatherMsg)states.get(x)).estimate;
+  					  // log.info("THE¡¡VALUE of PROPOSAL is " + proposal);
   					  highestballot = thisballot;
   				  }
   			  }
